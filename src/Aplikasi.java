@@ -1,45 +1,42 @@
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.function.Predicate;
 
-public class AplikasiManajemenKaryawan {
+public class Aplikasi {
     static ArrayList<Karyawan> daftarKaryawan = new ArrayList<>();
     static Scanner scanner = new Scanner(System.in);
-    static Map<String, Integer> jabatanCounter = new HashMap<>();
+    static int[] jabatanCounter = new int[3];
     static Random random = new Random();
 
     public static void main(String[] args) {
         while (true) {
-            System.out.println("=== Aplikasi Manajemen Karyawan ===");
+            System.out.println("Aplikasi Manajemen Karyawan PT. ChipiChapa");
             System.out.println("1. Insert Data Karyawan");
             System.out.println("2. View Data Karyawan");
             System.out.println("3. Update Data Karyawan");
             System.out.println("4. Delete Data Karyawan");
             System.out.println("0. Keluar");
-
-            System.out.print("Pilih menu (0-4): ");
+            System.out.print("Pilih menu [0-4]: ");
             String input = scanner.next();
-
             if (input.matches("[0-4]")) {
                 int pilihan = Integer.parseInt(input);
                 switch (pilihan) {
                     case 1:
-                        insertDataKaryawan();
+                        insertData();
                         break;
                     case 2:
-                        viewDataKaryawan();
+                        viewData();
                         break;
                     case 3:
-                        updateDataKaryawan();
+                        updateData();
                         break;
                     case 4:
-                        deleteDataKaryawan();
+                        deleteData();
                         break;
                     case 0:
-                        System.out.println("Terima kasih sudah menggunakan aplikasi ini.");
+                        System.out.println("Aplikasi ditutup.");
                         System.exit(0);
                 }
             } else {
@@ -51,13 +48,27 @@ public class AplikasiManajemenKaryawan {
         }
     }
 
-    static void insertDataKaryawan() {
-        System.out.println("=== Input Data Karyawan ===");
-
-        // Generate Kode Karyawan
-        String kode = generateKodeKaryawan();
-
-        // Input Nama Karyawan
+    static void jabatanCounter(String jabatan) {
+        int index = getJabatanIndex(jabatan);
+        jabatanCounter[index]++;
+    }
+    
+    static int getJabatanIndex(String jabatan) {
+        switch (jabatan.toLowerCase()) {
+            case "manager":
+                return 0;
+            case "supervisor":
+                return 1;
+            case "admin":
+                return 2;
+            default:
+                return -1;
+        }
+    }
+    
+    static void insertData() {
+        System.out.println("Masukkan Data Karyawan");
+        String kode = generateKode();
         String nama = null;
         boolean isValidNama = false;
 
@@ -90,26 +101,21 @@ public class AplikasiManajemenKaryawan {
             jabatan = scanner.next();
         }
 
-        // Input Gaji Karyawan
         int gaji = getGajiByJabatan(jabatan);
-
-        // Update counter untuk penentuan bonus
-        updateJabatanCounter(jabatan);
+        jabatanCounter(jabatan);
+        bonusGaji(jabatan, jabatanCounter[getJabatanIndex(jabatan)]);
 
         Karyawan karyawan = new Karyawan(kode, nama, jenisKelamin, jabatan, gaji);
         daftarKaryawan.add(karyawan);
 
         System.out.println("Berhasil menambahkan karyawan dengan id " + karyawan.kode);
         
-        // Bonus Gaji jika memenuhi syarat
-        bonusGaji(jabatan);
-        
         System.out.println("Press Enter to continue...");
         scanner.nextLine();
         scanner.nextLine();
     }
 
-    static String generateKodeKaryawan() {
+    static String generateKode() {
         // Generate 2 huruf alfabet random
         char[] hurufRandom = new char[2];
         for (int i = 0; i < 2; i++) {
@@ -134,27 +140,18 @@ public class AplikasiManajemenKaryawan {
                 return 0;
         }
     }
-
-    static void updateJabatanCounter(String jabatan) {
-        jabatanCounter.put(jabatan, jabatanCounter.getOrDefault(jabatan, 0) + 1);
+    
+    static long countKaryawanByJabatan(Predicate<Karyawan> predicate) {
+        return daftarKaryawan.stream().filter(predicate).count();
     }
 
-    static void bonusGaji(String jabatan) {
-        int jumlahKaryawanSama = jabatanCounter.getOrDefault(jabatan, 0);
-
+    static void bonusGaji(String jabatan, int jumlahKaryawanSama) {
         if (jumlahKaryawanSama > 0) {
             double bonus = getBonusByJabatan(jabatan);
-
             int karyawanBonusCount = (jumlahKaryawanSama >= 4) ? (jumlahKaryawanSama - (jumlahKaryawanSama % 3)) : 0;
-            
             if (karyawanBonusCount > 0) {
-//                double totalBonus = bonus * karyawanBonusCount / 100;
                 System.out.println("Bonus sebesar " + bonus + "% telah diberikan kepada " + karyawanBonusCount + " karyawan dengan id " + getBonusKoma(jabatan));
-                
-                // Pengurangan gaji tambahan dari counter
-                jabatanCounter.put(jabatan, jumlahKaryawanSama - karyawanBonusCount);
-
-                // Distribusi bonus ke karyawan
+                jabatanCounter[getJabatanIndex(jabatan)] -= karyawanBonusCount;
                 for (int i = 0; i < karyawanBonusCount; i++) {
                     Karyawan karyawan = daftarKaryawan.get(i);
                     if (karyawan.getJabatan().equals(jabatan)) {
@@ -169,8 +166,7 @@ public class AplikasiManajemenKaryawan {
 
     static String getBonusKoma(String jabatan) {
         StringBuilder bonusRecipients = new StringBuilder();
-        int karyawanBonusCount = Math.min(jabatanCounter.getOrDefault(jabatan, 0), 3);
-
+        int karyawanBonusCount = Math.min((int) countKaryawanByJabatan(karyawan -> karyawan.getJabatan().equals(jabatan)), 3);
         for (int i = 0; i < karyawanBonusCount; i++) {
             Karyawan karyawan = daftarKaryawan.get(i);
             if (karyawan.getJabatan().equals(jabatan)) {
@@ -196,17 +192,15 @@ public class AplikasiManajemenKaryawan {
         }
     }
 
-    static void viewDataKaryawan() {
+    static void viewData() {
     	System.out.println("=== View Data Karyawan ===");
-
+    	
         // Sorting data karyawan berdasarkan nama (ascending)
         daftarKaryawan.sort(Comparator.comparing(Karyawan::getNama));
-
-        // Menampilkan tabel header
         System.out.println("|==========================================================================================|");
         System.out.format("|%-5s|%-15s|%-20s|%-15s|%-15s|%-15s|%n", "No.", "Kode Karyawan", "Nama Karyawan", "Jenis Kelamin", "Jabatan", "Gaji Karyawan");
         System.out.println("|==========================================================================================|");
-       
+ 
         // Menampilkan data karyawan
         for (int i = 0; i < daftarKaryawan.size(); i++) {
         	Karyawan karyawan = daftarKaryawan.get(i);
@@ -219,10 +213,8 @@ public class AplikasiManajemenKaryawan {
         scanner.nextLine();  
     }
 
-    static void updateDataKaryawan() {
+    static void updateData() {
     	System.out.println("=== Update Data Karyawan ===");
-
-        // Sorting data karyawan berdasarkan nama (ascending)
         daftarKaryawan.sort(Comparator.comparing(Karyawan::getNama));
 
      // Menampilkan tabel header
@@ -252,7 +244,7 @@ public class AplikasiManajemenKaryawan {
                     System.out.println("Press Enter to continue...");
                     scanner.nextLine();
                     scanner.nextLine();
-                    updateDataKaryawan();
+                    updateData();
                 }
             } else {
                 System.out.println("Masukkan angka yang valid.");
@@ -260,7 +252,7 @@ public class AplikasiManajemenKaryawan {
                 scanner.next();  // clear buffer
                 scanner.nextLine();
                 scanner.nextLine();
-                updateDataKaryawan();
+                updateData();
             }
         }
 
@@ -271,7 +263,7 @@ public class AplikasiManajemenKaryawan {
             scanner.nextLine();
             main(null);
         }
-        
+      
         Karyawan selectedKaryawan = daftarKaryawan.get(selectedNumber - 1);
 
          // Input Nama Karyawan
@@ -306,14 +298,10 @@ public class AplikasiManajemenKaryawan {
                 System.out.print("Masukkan jabatan (Manager | Supervisor | Admin): ");
                 newJabatan = scanner.next();
             }
-
-            // Update counter untuk penentuan bonus
-            updateJabatanCounter(newJabatan);
-
-            // Bonus Gaji jika memenuhi syarat
-            bonusGaji(newJabatan);
-
-            // Update data karyawan
+            
+            jabatanCounter(newJabatan);
+            bonusGaji(newJabatan, jabatanCounter[getJabatanIndex(newJabatan)]);
+         
             selectedKaryawan.nama = newNama;
             selectedKaryawan.jenisKelamin = newJenisKelamin;
             selectedKaryawan.jabatan = newJabatan;
@@ -324,27 +312,19 @@ public class AplikasiManajemenKaryawan {
         scanner.nextLine();
     }
 
-    static void deleteDataKaryawan() {
+    static void deleteData() {
     	System.out.println("=== Delete Data Karyawan ===");
-
-        // Menampilkan data karyawan
     	daftarKaryawan.sort(Comparator.comparing(Karyawan::getNama));
-
-        // Menampilkan tabel header
         System.out.println("|==========================================================================================|");
         System.out.format("|%-5s|%-15s|%-20s|%-15s|%-15s|%-15s|%n", "No.", "Kode Karyawan", "Nama Karyawan", "Jenis Kelamin", "Jabatan", "Gaji Karyawan");
         System.out.println("|==========================================================================================|");
-       
-        // Menampilkan data karyawan
         for (int i = 0; i < daftarKaryawan.size(); i++) {
         	Karyawan karyawan = daftarKaryawan.get(i);
             System.out.format("|%-5s|%-15s|%-20s|%-15s|%-15s|%-15s|%n",
                     i + 1, karyawan.kode, karyawan.nama, karyawan.jenisKelamin, karyawan.jabatan, karyawan.gaji);
         }
         System.out.println("|==========================================================================================|");
-
         System.out.print("Masukkan nomor urutan karyawan yang ingin dihapus (0 untuk batal): ");
-
         int selectedNumber;
         while (true) {
             if (scanner.hasNextInt()) {
@@ -355,7 +335,7 @@ public class AplikasiManajemenKaryawan {
                     System.out.println("Nomor yang dimasukkan tidak valid.");
                     scanner.nextLine();
                     scanner.nextLine();
-                    deleteDataKaryawan();
+                    deleteData();
                 }
             } else {
             	System.out.println("Masukkan angka yang valid.");
@@ -363,10 +343,9 @@ public class AplikasiManajemenKaryawan {
                 scanner.next();  // clear buffer
                 scanner.nextLine();
                 scanner.nextLine();
-                deleteDataKaryawan();
+                deleteData();
             }
         }
-
         if (selectedNumber == 0) {
             System.out.println("Penghapusan data dibatalkan.");
             System.out.println("Press Enter to continue...");
@@ -377,11 +356,9 @@ public class AplikasiManajemenKaryawan {
 
         // Dapatkan data karyawan yang akan dihapus
         Karyawan karyawanToDelete = daftarKaryawan.get(selectedNumber - 1);
-        daftarKaryawan.remove(karyawanToDelete);
-        
-        // Pengurangan gaji tambahan dari counter
-        jabatanCounter.merge(karyawanToDelete.getJabatan(), 1, Integer::sum);
-        
+        jabatanCounter[getJabatanIndex(karyawanToDelete.getJabatan())]--; // Kurangi counter gaji tambahan
+        bonusGaji(karyawanToDelete.getJabatan(), jabatanCounter[getJabatanIndex(karyawanToDelete.getJabatan())]);
+        daftarKaryawan.remove(karyawanToDelete);   
         System.out.println("Karyawan dengan kode " + karyawanToDelete.kode + " berhasil dihapus");
         System.out.println("Press Enter to continue...");
         scanner.nextLine();
